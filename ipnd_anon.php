@@ -237,7 +237,7 @@ function createDummyData() {
  */
 function ipndUploadFilename($sequence) {
     $fileType = "UP"; // FileType for Upload file
-    $fileSource = "BENKO"; // Example file source, adjust as necessary
+    $fileSource = FILE_SOURCE_CODE; // Example file source, adjust as necessary
     $formattedSequence = str_pad($sequence, 7, "0", STR_PAD_LEFT); // Ensuring 7 digits with leading zeros
 
     // Construct the file name
