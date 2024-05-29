@@ -10,8 +10,8 @@ define('DATA_PROVIDER_CODE', '');
  *
  * @return string Header row
  */
-function createHeader() {
-    return 'HDR' . str_pad('IPNDUP', 6) . str_pad(FILE_SOURCE_CODE, 5) . '0000001' . date('YmdHis') . str_repeat(' ', 870) . "\n";
+function createHeader($filename) {
+    return 'HDR' . str_replace('.','',$filename) . date('YmdHis') . str_repeat(' ', 870) . "\n";
 }
 
 /**
@@ -20,8 +20,9 @@ function createHeader() {
  * @param int $recordCount Number of data records in the file
  * @return string Trailer row
  */
-function createTrailer($recordCount) {
-    return 'TRL' . str_pad('0000001', 7) . date('YmdHis') . str_pad($recordCount, 7, '0', STR_PAD_LEFT) . str_repeat(' ', 874) . "\n";
+function createTrailer($filename,$recordCount) {
+    $seq = explode('.',$filename);
+    return 'TRL' . $seq[1] . date('YmdHis') . str_pad($recordCount, 7, '0', STR_PAD_LEFT) . str_repeat(' ', 874) . "\n";
 }
 
 /**
@@ -135,16 +136,26 @@ function createDataRow($data) {
  * @return array An array of associative arrays, each representing a transaction record with all required and optional fields.
  */
 function createDummyData() {
-    $typeOfServiceOptions = ['DODAT', 'DOM2M', 'DOIOT', 'FAX', 'FCALL', 'FIXED', 'MOBIL', 'MODEM', 'ONE3', 'PAGER', 'PAYPH', 'PRVPY', 'PREM', 'SATEL', 'VMFIX', 'VMMOB', 'VMPDM', 'VMMVH'];
+    $typeOfServiceOptions = [
+        'DODAT', 'DOM2M', 'DOIOT', 'FAX', 'FCALL', 'FIXED', 'MOBIL', 'MODEM', 
+        'ONE3', 'PAGER', 'PAYPH', 'PRVPY', 'PREM', 'SATEL', 'VMFIX', 'VMMOB', 'VMPDM', 'VMMVH'
+    ];
     $listCodes = ['LE', 'UL', 'SA'];
+    $localities = [
+        ['suburb' => 'Parramatta', 'state' => 'NSW', 'postcode' => '2150'],
+        ['suburb' => 'Melbourne', 'state' => 'VIC', 'postcode' => '3000'],
+        ['suburb' => 'Brisbane', 'state' => 'QLD', 'postcode' => '4000']
+    ];
+
     $dummyData = [];
 
     for ($i = 0; $i < 10; $i++) {
         $listCode = $listCodes[array_rand($listCodes)];
         $directoryMandatory = ($listCode == 'LE' || $listCode == 'SA');
+        $locality = $localities[array_rand($localities)];
 
         $dummyData[] = [
-            'public_number' => str_pad($i + 312345678, 20, '0', STR_PAD_LEFT),
+            'public_number' => '04' . str_pad(rand(10000000, 99999999), 8, '0', STR_PAD_LEFT),
             'service_status_code' => ($i % 2 === 0) ? 'C' : 'D',
             'pending_flag' => 'F',
             'cancel_pending_flag' => 'F',
@@ -175,9 +186,9 @@ function createDummyData() {
             'service_street_name2' => "Second St " . $i,
             'service_street_type2' => 'Ave',
             'service_street_suffix2' => ($i % 2 === 0) ? 'N' : 'S',
-            'service_address_locality' => "Locality " . $i,
-            'service_address_state' => ($i % 3 === 0) ? 'NSW' : (($i % 3 === 1) ? 'VIC' : 'QLD'),
-            'service_address_postcode' => str_pad(strval(1000 + $i), 4, '0', STR_PAD_LEFT),
+            'service_address_locality' => $locality['suburb'],
+            'service_address_state' => $locality['state'],
+            'service_address_postcode' => $locality['postcode'],
             'directory_building_type' => 'Office',
             'directory_building_1st_nr' => '123',
             'directory_building_1st_suffix' => 'A',
@@ -198,9 +209,9 @@ function createDummyData() {
             'directory_street_name2' => 'Aux St',
             'directory_street_type2' => 'Way',
             'directory_street_suffix2' => 'S',
-            'directory_address_locality' => $directoryMandatory ? "Dir Locality " . $i : '',
-            'directory_address_state' => $directoryMandatory ? 'QLD' : '',
-            'directory_address_postcode' => $directoryMandatory ? '4000' : '',
+            'directory_address_locality' => $directoryMandatory ? $locality['suburb'] : '',
+            'directory_address_state' => $directoryMandatory ? $locality['state'] : '',
+            'directory_address_postcode' => $directoryMandatory ? $locality['postcode'] : '',
             'list_code' => $listCode,
             'usage_code' => ($i % 4 === 0) ? 'R' : (($i % 4 === 1) ? 'B' : (($i % 4 === 2) ? 'G' : 'C')),
             'type_of_service' => $typeOfServiceOptions[array_rand($typeOfServiceOptions)],
@@ -226,7 +237,7 @@ function createDummyData() {
  */
 function ipndUploadFilename($sequence) {
     $fileType = "UP"; // FileType for Upload file
-    $fileSource = FILE_SOURCE_CODE;
+    $fileSource = "BENKO"; // Example file source, adjust as necessary
     $formattedSequence = str_pad($sequence, 7, "0", STR_PAD_LEFT); // Ensuring 7 digits with leading zeros
 
     // Construct the file name
@@ -240,14 +251,14 @@ $dummyData = createDummyData();
 
 
 
+$fname = ipndUploadFilename(6);
 // Generate the file content
-$fileContent = createHeader();
+$fileContent = createHeader($fname);
 foreach ($dummyData as $data) {
     $fileContent .= createDataRow($data);
 }
-$fileContent .= createTrailer(count($dummyData));
+$fileContent .= createTrailer($fname,count($dummyData));
 
 // Output to a file
-$fname = ipndUploadFilename(2);
 file_put_contents($fname, $fileContent);
 echo "File created with dummy data: ".$fname.PHP_EOL;
